@@ -17,14 +17,7 @@ from dagster import (
     schedule,
     validate_run_config,
 )
-from dagster._legacy import (
-    daily_schedule,
-    hourly_schedule,
-    monthly_schedule,
-    pipeline,
-    solid,
-    weekly_schedule,
-)
+from dagster._legacy import daily_schedule, hourly_schedule, monthly_schedule, weekly_schedule
 from dagster._seven.compat.pendulum import create_pendulum_time, to_timezone
 from dagster._utils import merge_dicts
 from dagster._utils.partitions import (
@@ -49,7 +42,7 @@ def test_scheduler():
             )
         ]
 
-    @schedule(cron_schedule="* * * * *", job_name="foo_pipeline")
+    @schedule(cron_schedule="* * * * *", job_name="foo_job")
     def echo_time_schedule(context):
         return {
             "echo_time": (
@@ -63,7 +56,7 @@ def test_scheduler():
 
     @schedule(
         cron_schedule="* * * * *",
-        job_name="foo_pipeline",
+        job_name="foo_job",
         should_execute=lambda x: False,
     )
     def always_skip_schedule():
@@ -94,21 +87,21 @@ def test_scheduler():
 
 
 def test_schedule_decorators_sanity():
-    @solid
+    @op
     def do_nothing(_):
         pass
 
-    @pipeline
-    def foo_pipeline():
+    @job
+    def foo_job():
         do_nothing()
 
-    @schedule(cron_schedule="* * * * *", job_name="foo_pipeline")
+    @schedule(cron_schedule="* * * * *", job_name="foo_job")
     def foo_schedule():
         """Fake doc block"""
         return {}
 
     @monthly_schedule(
-        pipeline_name="foo_pipeline",
+        pipeline_name="foo_job",
         execution_day_of_month=3,
         start_date=datetime(year=2019, month=1, day=1),
     )
@@ -117,7 +110,7 @@ def test_schedule_decorators_sanity():
         return {}
 
     @weekly_schedule(
-        pipeline_name="foo_pipeline",
+        pipeline_name="foo_job",
         execution_day_of_week=1,
         start_date=datetime(year=2019, month=1, day=1),
     )
@@ -126,7 +119,7 @@ def test_schedule_decorators_sanity():
         return {}
 
     @daily_schedule(
-        pipeline_name="foo_pipeline",
+        pipeline_name="foo_job",
         start_date=datetime(year=2019, month=1, day=1),
     )
     def daily_foo_schedule():
@@ -134,7 +127,7 @@ def test_schedule_decorators_sanity():
         return {}
 
     @hourly_schedule(
-        pipeline_name="foo_pipeline",
+        pipeline_name="foo_job",
         start_date=datetime(year=2019, month=1, day=1),
     )
     def hourly_foo_schedule():
@@ -156,7 +149,7 @@ def test_schedule_decorators_sanity():
 
     @schedule(
         cron_schedule="* * * * *",
-        job_name="foo_pipeline",
+        job_name="foo_job",
         execution_timezone="US/Central",
     )
     def foo_schedule_timezone():
@@ -172,7 +165,7 @@ def test_schedule_decorators_sanity():
     ):
 
         @daily_schedule(
-            pipeline_name="foo_pipeline",
+            pipeline_name="foo_job",
             start_date=datetime(year=2019, month=1, day=1),
             execution_timezone="MadeUpTimeZone",
         )
@@ -216,7 +209,7 @@ def test_partitions_for_hourly_schedule_decorators_without_timezone(
         start_date = datetime(year=2019, month=1, day=1)
 
         @hourly_schedule(
-            pipeline_name="foo_pipeline",
+            pipeline_name="foo_job",
             start_date=start_date,
             execution_time=time(hour=0, minute=25),
             partition_hours_offset=partition_hours_offset,
@@ -265,7 +258,7 @@ def test_partitions_for_hourly_schedule_decorators_with_timezone(
         # in the execution timezone
 
         @hourly_schedule(
-            pipeline_name="foo_pipeline",
+            pipeline_name="foo_job",
             start_date=start_date,
             execution_time=time(hour=0, minute=25),
             execution_timezone="US/Central",
@@ -303,7 +296,7 @@ def test_partitions_for_hourly_schedule_decorators_with_timezone(
         start_date_with_different_timezone = create_pendulum_time(2019, 1, 1, 0, tz="US/Pacific")
 
         @hourly_schedule(
-            pipeline_name="foo_pipeline",
+            pipeline_name="foo_job",
             start_date=start_date_with_different_timezone,
             execution_time=time(hour=0, minute=25),
             execution_timezone="US/Central",
@@ -336,7 +329,7 @@ def test_partitions_for_daily_schedule_decorators_without_timezone(
         start_date = datetime(year=2019, month=1, day=1)
 
         @daily_schedule(
-            pipeline_name="foo_pipeline",
+            pipeline_name="foo_job",
             start_date=start_date,
             execution_time=time(hour=9, minute=30),
             partition_days_offset=partition_days_offset,
@@ -384,7 +377,7 @@ def test_partitions_for_daily_schedule_decorators_with_timezone(
         start_date = datetime(year=2019, month=1, day=1)
 
         @daily_schedule(
-            pipeline_name="foo_pipeline",
+            pipeline_name="foo_job",
             start_date=start_date,
             execution_time=time(hour=9, minute=30),
             execution_timezone="US/Central",
@@ -430,7 +423,7 @@ def test_partitions_for_weekly_schedule_decorators_without_timezone(
         start_date = datetime(year=2019, month=1, day=1)
 
         @weekly_schedule(
-            pipeline_name="foo_pipeline",
+            pipeline_name="foo_job",
             execution_day_of_week=3,
             start_date=start_date,
             execution_time=time(9, 30),
@@ -480,7 +473,7 @@ def test_partitions_for_weekly_schedule_decorators_with_timezone(
         start_date = datetime(year=2019, month=1, day=1)
 
         @weekly_schedule(
-            pipeline_name="foo_pipeline",
+            pipeline_name="foo_job",
             execution_day_of_week=3,
             start_date=start_date,
             execution_time=time(9, 30),
@@ -527,7 +520,7 @@ def test_partitions_for_monthly_schedule_decorators_without_timezone(
         start_date = datetime(year=2019, month=1, day=1)
 
         @monthly_schedule(
-            pipeline_name="foo_pipeline",
+            pipeline_name="foo_job",
             execution_day_of_month=3,
             start_date=start_date,
             execution_time=time(9, 30),
@@ -578,7 +571,7 @@ def test_partitions_for_monthly_schedule_decorators_with_timezone(
         start_date = datetime(year=2019, month=1, day=1)
 
         @monthly_schedule(
-            pipeline_name="foo_pipeline",
+            pipeline_name="foo_job",
             execution_day_of_month=3,
             start_date=start_date,
             execution_time=time(9, 30),
@@ -651,18 +644,18 @@ def test_partitions_outside_schedule_range():
 
 
 def test_schedule_decorators_bad():
-    @solid
+    @op
     def do_nothing(_):
         pass
 
-    @pipeline
-    def foo_pipeline():
+    @job
+    def foo_job():
         do_nothing()
 
     with pytest.raises(DagsterInvalidDefinitionError):
 
         @monthly_schedule(
-            pipeline_name="foo_pipeline",
+            pipeline_name="foo_job",
             execution_day_of_month=32,
             start_date=datetime(year=2019, month=1, day=1),
         )
@@ -677,7 +670,7 @@ def test_schedule_decorators_bad():
     ):
 
         @monthly_schedule(
-            pipeline_name="foo_pipeline",
+            pipeline_name="foo_job",
             execution_day_of_month=7,
             start_date=datetime(year=2019, month=1, day=5),
         )
@@ -687,7 +680,7 @@ def test_schedule_decorators_bad():
     with pytest.raises(DagsterInvalidDefinitionError):
 
         @monthly_schedule(
-            pipeline_name="foo_pipeline",
+            pipeline_name="foo_job",
             execution_day_of_month=0,
             start_date=datetime(year=2019, month=1, day=1),
         )
@@ -697,7 +690,7 @@ def test_schedule_decorators_bad():
     with pytest.raises(DagsterInvalidDefinitionError):
 
         @weekly_schedule(
-            pipeline_name="foo_pipeline",
+            pipeline_name="foo_job",
             execution_day_of_week=7,
             start_date=datetime(year=2019, month=1, day=1),
         )
@@ -710,7 +703,7 @@ def test_schedule_decorators_bad():
     ):
 
         @weekly_schedule(
-            pipeline_name="foo_pipeline",
+            pipeline_name="foo_job",
             execution_day_of_week=3,
             start_date=datetime(year=2019, month=1, day=1, hour=2),
         )
@@ -723,7 +716,7 @@ def test_schedule_decorators_bad():
     ):
 
         @daily_schedule(
-            pipeline_name="foo_pipeline",
+            pipeline_name="foo_job",
             start_date=datetime(year=2019, month=1, day=1, hour=2),
         )
         def daily_foo_schedule_start_later_in_day():
@@ -737,7 +730,7 @@ def test_schedule_decorators_bad():
     ):
 
         @hourly_schedule(
-            pipeline_name="foo_pipeline",
+            pipeline_name="foo_job",
             start_date=datetime(year=2019, month=1, day=1, hour=2, minute=30),
         )
         def hourly_foo_schedule_start_later_in_hour():
@@ -745,19 +738,19 @@ def test_schedule_decorators_bad():
 
     with pytest.raises(DagsterInvalidDefinitionError, match="invalid cron schedule"):
 
-        @schedule(cron_schedule="", job_name="foo_pipeline")
+        @schedule(cron_schedule="", job_name="foo_job")
         def bad_cron_string(context):
             return {}
 
     with pytest.raises(DagsterInvalidDefinitionError, match="invalid cron schedule"):
 
-        @schedule(cron_schedule="bad_schedule_two", job_name="foo_pipeline")
+        @schedule(cron_schedule="bad_schedule_two", job_name="foo_job")
         def bad_cron_string_two(context):
             return {}
 
     with pytest.raises(DagsterInvalidDefinitionError, match="invalid cron schedule"):
 
-        @schedule(cron_schedule="* * * * * *", job_name="foo_pipeline")
+        @schedule(cron_schedule="* * * * * *", job_name="foo_job")
         def bad_cron_string_three(context):
             return {}
 
@@ -766,7 +759,7 @@ def test_schedule_with_nested_tags():
 
     nested_tags = {"foo": {"bar": "baz"}}
 
-    @schedule(cron_schedule="* * * * *", job_name="foo_pipeline", tags=nested_tags)
+    @schedule(cron_schedule="* * * * *", job_name="foo_job", tags=nested_tags)
     def my_tag_schedule():
         return {}
 

@@ -18,6 +18,7 @@ from dagster import (
     ExpectationResult,
     In,
     Nothing,
+    OpDefinition,
     Out,
     Output,
     build_op_context,
@@ -26,10 +27,9 @@ from dagster import (
     mem_io_manager,
     op,
 )
-from dagster._core.definitions.op_definition import OpDefinition
 from dagster._core.test_utils import instance_for_test
 from dagster._core.types.dagster_type import Int, String
-from dagster._legacy import Materialization, SolidDefinition, solid
+from dagster._legacy import Materialization
 
 
 def some_fn(a):
@@ -71,14 +71,6 @@ def test_op():
 
     assert isinstance(my_op, OpDefinition)
     execute_op_in_graph(my_op)
-
-
-def test_solid_decorator_produces_solid():
-    @solid
-    def my_solid():
-        pass
-
-    assert isinstance(my_solid, SolidDefinition) and not isinstance(my_solid, OpDefinition)
 
 
 def test_ins():
@@ -505,20 +497,20 @@ def test_solid_and_op_config_error_messages():
     ):
         my_graph.execute_in_process()
 
-    @solid(config_schema={"foo": str})
-    def my_solid(context):
-        return context.solid_config["foo"]
+    @op(config_schema={"foo": str})
+    def my_op(context):
+        return context.op_config["foo"]
 
     @graph
     def my_graph_with_solid():
-        my_solid()
+        my_op()
 
     # Document that for now, using jobs at the top level will result in config errors being
     # in terms of ops.
     with pytest.raises(
         DagsterInvalidConfigError,
         match='Missing required config entry "ops" at the root. Sample config for missing '
-        "entry: {'ops': {'my_solid': {'config': {'foo': '...'"
+        "entry: {'ops': {'my_op': {'config': {'foo': '...'"
         "}}}}",
     ):
         my_graph_with_solid.to_job().execute_in_process()
@@ -532,22 +524,20 @@ def test_error_message_mixed_ops_and_solids():
     def my_op(context):
         return context.op_config["foo"]
 
-    @solid(config_schema={"foo": str})
-    def my_solid(context):
-        return context.solid_config["foo"]
+    @op(config_schema={"foo": str})
+    def my_op(context):
+        return context.op_config["foo"]
 
     @graph
     def my_graph_with_both():
         my_op()
-        my_solid()
+        my_op()
 
     my_job = my_graph_with_both.to_job()
 
     with pytest.raises(
         DagsterInvalidConfigError,
-        match='Missing required config entry "ops" at the root. Sample config for missing '
-        "entry: {'ops': {'my_op': {'config': {'foo': '...'}}, 'my_solid': "
-        "{'config': {'foo': '...'}}}",
+        match='Missing required config entry "ops" at the root.',
     ):
         my_job.execute_in_process()
 
@@ -559,9 +549,7 @@ def test_error_message_mixed_ops_and_solids():
 
     with pytest.raises(
         DagsterInvalidConfigError,
-        match='Missing required config entry "ops" at the root. Sample config for missing '
-        "entry: {'ops': {'my_graph_with_both': {'ops': {'my_op': {'config': {'foo': '...'}}, 'my_solid': "
-        "{'config': {'foo': '...'}}}}}",
+        match='Missing required config entry "ops" at the root.',
     ):
         nested_job.execute_in_process()
 

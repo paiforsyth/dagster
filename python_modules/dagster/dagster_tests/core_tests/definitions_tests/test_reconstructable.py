@@ -4,7 +4,7 @@ import types
 
 import pytest
 
-from dagster import DagsterInvariantViolationError
+from dagster import DagsterInvariantViolationError, GraphDefinition, JobDefinition, job, op
 from dagster._core.code_pointer import FileCodePointer
 from dagster._core.definitions.reconstruct import reconstructable
 from dagster._core.origin import (
@@ -13,23 +13,22 @@ from dagster._core.origin import (
     RepositoryPythonOrigin,
 )
 from dagster._core.snap import PipelineSnapshot, create_pipeline_snapshot_id
-from dagster._legacy import PipelineDefinition, lambda_solid, pipeline
 from dagster._utils import file_relative_path
 from dagster._utils.hosted_user_process import recon_pipeline_from_origin
 
 
-@lambda_solid
-def the_solid():
+@op
+def the_op():
     return 1
 
 
-@pipeline
-def the_pipeline():
-    the_solid()
+@job
+def the_job():
+    the_op()
 
 
 def get_the_pipeline():
-    return the_pipeline
+    return the_job
 
 
 def not_the_pipeline():
@@ -37,10 +36,10 @@ def not_the_pipeline():
 
 
 def get_with_args(_x):
-    return the_pipeline
+    return the_job
 
 
-lambda_version = lambda: the_pipeline
+lambda_version = lambda: the_job
 
 
 def pid(pipeline_def):
@@ -49,12 +48,12 @@ def pid(pipeline_def):
 
 def test_function():
     recon_pipe = reconstructable(get_the_pipeline)
-    assert pid(recon_pipe.get_definition()) == pid(the_pipeline)
+    assert pid(recon_pipe.get_definition()) == pid(the_job)
 
 
 def test_decorator():
-    recon_pipe = reconstructable(the_pipeline)
-    assert pid(recon_pipe.get_definition()) == pid(the_pipeline)
+    recon_pipe = reconstructable(the_job)
+    assert pid(recon_pipe.get_definition()) == pid(the_job)
 
 
 def test_lambda():
@@ -77,10 +76,10 @@ def test_not_defined_in_module(mocker):
 
 
 def test_manual_instance():
-    defn = PipelineDefinition([the_solid], "test")
+    defn = JobDefinition(graph_def=GraphDefinition(node_defs=[the_op], name="test"))
     with pytest.raises(
         DagsterInvariantViolationError,
-        match="Reconstructable target should be a function or definition produced by a decorated function",
+        match="Reconstructable target was not a function returning a job definition, or a job definition produced by a decorated function.",
     ):
         reconstructable(defn)
 
@@ -106,7 +105,7 @@ def test_bad_target():
 
 def test_inner_scope():
     def get_the_pipeline_inner():
-        return the_pipeline
+        return the_job
 
     with pytest.raises(
         DagsterInvariantViolationError,
@@ -116,9 +115,9 @@ def test_inner_scope():
 
 
 def test_inner_decorator():
-    @pipeline
+    @job
     def pipe():
-        the_solid()
+        the_op()
 
     with pytest.raises(
         DagsterInvariantViolationError,
@@ -129,20 +128,20 @@ def test_inner_decorator():
 
 def test_solid_selection():
     recon_pipe = reconstructable(get_the_pipeline)
-    sub_pipe_full = recon_pipe.subset_for_execution(["the_solid"], asset_selection=None)
-    assert sub_pipe_full.solids_to_execute == {"the_solid"}
+    sub_pipe_full = recon_pipe.subset_for_execution(["the_op"], asset_selection=None)
+    assert sub_pipe_full.solid_selection == ["the_op"]
 
-    sub_pipe_unresolved = recon_pipe.subset_for_execution(["the_solid+"], asset_selection=None)
-    assert sub_pipe_unresolved.solids_to_execute == {"the_solid"}
+    sub_pipe_unresolved = recon_pipe.subset_for_execution(["the_op+"], asset_selection=None)
+    assert sub_pipe_unresolved.solid_selection == ["the_op+"]
 
 
 def test_reconstructable_module():
     original_sys_path = sys.path
     try:
         sys.path.insert(0, file_relative_path(__file__, "."))
-        from foo import bar_pipeline  # pylint: disable=import-error
+        from foo import bar_job  # pylint: disable=import-error
 
-        reconstructable(bar_pipeline)
+        reconstructable(bar_job)
 
     finally:
         sys.path = original_sys_path
