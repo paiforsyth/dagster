@@ -1,6 +1,11 @@
 import pytest
 
 from dagster import (
+    GraphDefinition,
+    job,
+    In,
+    Out,
+    op,
     Any,
     Bool,
     DagsterInvalidDefinitionError,
@@ -19,13 +24,6 @@ from dagster._core.types.dagster_type import (
     DagsterType,
     DagsterTypeKind,
     resolve_dagster_type,
-)
-from dagster._legacy import (
-    InputDefinition,
-    OutputDefinition,
-    PipelineDefinition,
-    lambda_solid,
-    pipeline,
 )
 
 
@@ -46,7 +44,9 @@ def test_inner_types():
     assert inner_type_key_set(list_nullable_int_runtime) == set(["Int", "Optional.Int"])
     assert not list_nullable_int_runtime.kind == DagsterTypeKind.SCALAR
 
-    tuple_optional_list = resolve_dagster_type(Tuple[List[Optional[Int]], List[Dict[str, str]]])
+    tuple_optional_list = resolve_dagster_type(
+        Tuple[List[Optional[Int]], List[Dict[str, str]]]
+    )
     assert inner_type_key_set(tuple_optional_list) == set(
         [
             "Int",
@@ -98,7 +98,9 @@ def test_display_name():
 
 
 def test_builtins_available():
-    pipeline_def = PipelineDefinition(name="test_builting_available", solid_defs=[])
+    pipeline_def = GraphDefinition(
+        name="test_builting_available", node_defs=[]
+    ).to_job()
     for builtin_type in ALL_RUNTIME_BUILTINS:
         assert pipeline_def.has_dagster_type(builtin_type.unique_name)
         assert pipeline_def.dagster_type_named(builtin_type.unique_name).is_builtin
@@ -114,7 +116,7 @@ def test_python_mapping():
     runtime = resolve_dagster_type(float)
     assert runtime.unique_name == "Float"
 
-    @lambda_solid(input_defs=[InputDefinition("num", int)])
+    @op(ins={"num": In(int)})
     def add_one(num):
         return num + 1
 
@@ -136,20 +138,20 @@ def test_double_dagster_type():
     AlwaysSucceedsFoo = DagsterType(name="Foo", type_check_fn=lambda _, _val: True)
     AlwaysFailsFoo = DagsterType(name="Foo", type_check_fn=lambda _, _val: False)
 
-    @lambda_solid
+    @op
     def return_a_thing():
         return 1
 
-    @lambda_solid(
-        input_defs=[InputDefinition("succeeds", AlwaysSucceedsFoo)],
-        output_def=OutputDefinition(AlwaysFailsFoo),
+    @op(
+        ins={"succeeds": In(AlwaysSucceedsFoo)},
+        out=Out(AlwaysFailsFoo),
     )
     def yup(succeeds):
         return succeeds
 
     with pytest.raises(DagsterInvalidDefinitionError) as exc_info:
 
-        @pipeline
+        @job
         def _should_fail():
             yup(return_a_thing())
 
@@ -168,7 +170,9 @@ def test_comparison():
     assert resolve_dagster_type(Int) == resolve_dagster_type(Int)
     assert resolve_dagster_type(String) == resolve_dagster_type(String)
     assert resolve_dagster_type(Nothing) == resolve_dagster_type(Nothing)
-    assert resolve_dagster_type(Optional[String]) == resolve_dagster_type(Optional[String])
+    assert resolve_dagster_type(Optional[String]) == resolve_dagster_type(
+        Optional[String]
+    )
 
     types = [Any, Bool, Float, Int, String, Nothing]
     non_equal_pairs = [(t1, t2) for t1 in types for t2 in types if t1 != t2]
@@ -179,18 +183,26 @@ def test_comparison():
     # List type
     assert resolve_dagster_type(List) == resolve_dagster_type(List)
     assert resolve_dagster_type(List[String]) == resolve_dagster_type(List[String])
-    assert resolve_dagster_type(List[List[Int]]) == resolve_dagster_type(List[List[Int]])
+    assert resolve_dagster_type(List[List[Int]]) == resolve_dagster_type(
+        List[List[Int]]
+    )
     assert resolve_dagster_type(List[Optional[String]]) == resolve_dagster_type(
         List[Optional[String]]
     )
 
     assert resolve_dagster_type(List[String]) != resolve_dagster_type(List[Int])
-    assert resolve_dagster_type(List[List[String]]) != resolve_dagster_type(List[List[Int]])
-    assert resolve_dagster_type(List[String]) != resolve_dagster_type(List[Optional[String]])
+    assert resolve_dagster_type(List[List[String]]) != resolve_dagster_type(
+        List[List[Int]]
+    )
+    assert resolve_dagster_type(List[String]) != resolve_dagster_type(
+        List[Optional[String]]
+    )
 
     # Tuple type
     assert resolve_dagster_type(Tuple) == resolve_dagster_type(Tuple)
-    assert resolve_dagster_type(Tuple[String, Int]) == resolve_dagster_type(Tuple[String, Int])
+    assert resolve_dagster_type(Tuple[String, Int]) == resolve_dagster_type(
+        Tuple[String, Int]
+    )
     assert resolve_dagster_type(Tuple[Tuple[String, Int]]) == resolve_dagster_type(
         Tuple[Tuple[String, Int]]
     )
@@ -198,11 +210,15 @@ def test_comparison():
         Tuple[Optional[String], Int]
     )
 
-    assert resolve_dagster_type(Tuple[String, Int]) != resolve_dagster_type(Tuple[Int, String])
+    assert resolve_dagster_type(Tuple[String, Int]) != resolve_dagster_type(
+        Tuple[Int, String]
+    )
     assert resolve_dagster_type(Tuple[Tuple[String, Int]]) != resolve_dagster_type(
         Tuple[Tuple[Int, String]]
     )
-    assert resolve_dagster_type(Tuple[String]) != resolve_dagster_type(Tuple[Optional[String]])
+    assert resolve_dagster_type(Tuple[String]) != resolve_dagster_type(
+        Tuple[Optional[String]]
+    )
 
     # Set type
     assert resolve_dagster_type(Set) == resolve_dagster_type(Set)
@@ -214,16 +230,22 @@ def test_comparison():
 
     assert resolve_dagster_type(Set[String]) != resolve_dagster_type(Set[Int])
     assert resolve_dagster_type(Set[Set[String]]) != resolve_dagster_type(Set[Set[Int]])
-    assert resolve_dagster_type(Set[String]) != resolve_dagster_type(Set[Optional[String]])
+    assert resolve_dagster_type(Set[String]) != resolve_dagster_type(
+        Set[Optional[String]]
+    )
 
     # Dict type
     assert resolve_dagster_type(Dict) == resolve_dagster_type(Dict)
-    assert resolve_dagster_type(Dict[String, Int]) == resolve_dagster_type(Dict[String, Int])
-    assert resolve_dagster_type(Dict[String, Dict[String, Int]]) == resolve_dagster_type(
-        Dict[String, Dict[String, Int]]
+    assert resolve_dagster_type(Dict[String, Int]) == resolve_dagster_type(
+        Dict[String, Int]
     )
+    assert resolve_dagster_type(
+        Dict[String, Dict[String, Int]]
+    ) == resolve_dagster_type(Dict[String, Dict[String, Int]])
 
-    assert resolve_dagster_type(Dict[String, Int]) != resolve_dagster_type(Dict[Int, String])
+    assert resolve_dagster_type(Dict[String, Int]) != resolve_dagster_type(
+        Dict[Int, String]
+    )
     assert resolve_dagster_type(Dict[Int, Dict[String, Int]]) != resolve_dagster_type(
         Dict[String, Dict[String, Int]]
     )
