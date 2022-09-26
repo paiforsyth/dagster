@@ -6,6 +6,13 @@ from dagster import AssetMaterialization, MetadataValue
 from dagster._core.definitions.metadata.table import TableColumn, TableSchema
 
 
+def is_basic_normalization_operation(operation_def: Dict[str, Any]) -> bool:
+    return (
+        operation_def.get("operatorType") == "normalization"
+        and operation_def.get("normalization", {}).get("option") == "basic"
+    )
+
+
 def _materialization_for_stream(
     name: str,
     stream_schema_props: Dict[str, Any],

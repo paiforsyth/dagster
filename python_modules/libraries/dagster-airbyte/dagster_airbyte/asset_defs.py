@@ -16,8 +16,9 @@ from typing import (
 )
 
 import yaml
+from dagster_airbyte.managed import reconcile_config
 from dagster_airbyte.resources import AirbyteResource
-from dagster_airbyte.utils import generate_materializations
+from dagster_airbyte.utils import generate_materializations, is_basic_normalization_operation
 
 from dagster import AssetKey, AssetOut, Output, ResourceDefinition
 from dagster import _check as check
@@ -31,6 +32,10 @@ from dagster._core.definitions.cacheable_assets import (
 from dagster._core.definitions.events import CoercibleToAssetKeyPrefix
 from dagster._core.definitions.load_assets_from_modules import with_group
 from dagster._core.execution.context.init import build_init_resource_context
+from dagster._experimental.managed_stacks import (
+    ManagedStackAssetsDefinition,
+    ManagedStackCheckResult,
+)
 
 
 def _build_airbyte_asset_defn_metadata(
@@ -286,9 +291,7 @@ class AirbyteConnection(
             name=contents["name"],
             stream_prefix=contents.get("prefix", ""),
             has_basic_normalization=any(
-                op.get("operatorConfiguration", {}).get("operatorType") == "normalization"
-                and op.get("operatorConfiguration", {}).get("normalization", {}).get("option")
-                == "basic"
+                is_basic_normalization_operation(op.get("operatorConfiguration", {}))
                 for op in operations.get("operations", [])
             ),
             stream_data=contents.get("syncCatalog", {}).get("streams", []),
@@ -305,9 +308,7 @@ class AirbyteConnection(
             name=contents["resource_name"],
             stream_prefix=config_contents.get("prefix", ""),
             has_basic_normalization=any(
-                op.get("operator_configuration", {}).get("operator_type") == "normalization"
-                and op.get("operator_configuration", {}).get("normalization", {}).get("option")
-                == "basic"
+                is_basic_normalization_operation(op.get("operator_configuration", {}))
                 for op in config_contents.get("operations", [])
             ),
             stream_data=config_contents.get("sync_catalog", {}).get("streams", []),
@@ -368,7 +369,7 @@ class AirbyteInstanceCacheableAssetsDefintion(CacheableAssetsDefinition):
         self._create_assets_for_normalization_tables = create_assets_for_normalization_tables
         self._connection_to_group_fn = connection_to_group_fn
 
-        super().__init__(unique_id="airbyte")
+        super().__init__(unique_id="airrbyte")
 
     def get_metadata(self) -> Sequence[AssetsDefinitionMetadata]:
 
@@ -475,6 +476,20 @@ def load_assets_from_airbyte_instance(
         create_assets_for_normalization_tables,
         connection_to_group_fn,
     )
+
+
+class ManagedAirbyteStack(AirbyteInstanceLazyAssetsDefintion, ManagedStackAssetsDefinition):
+    def __init__(self, airbyte: ResourceDefinition, connections: Iterable[AirbyteConnection]):
+        self._airbyte_instance: AirbyteResource = airbyte(build_init_resource_context())
+        self._connections = list(connections)
+
+        super().__init__(airbyte, None, [], True, None)
+
+    def check(self) -> ManagedStackCheckResult:
+        return reconcile_config(self._airbyte_instance, self._connections, dry_run=True)
+
+    def apply(self) -> ManagedStackCheckResult:
+        return reconcile_config(self._airbyte_instance, self._connections)
 
 
 @experimental

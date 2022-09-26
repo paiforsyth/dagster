@@ -1,13 +1,21 @@
 from dagster._core.utils import check_dagster_package_version
 
+from . import managed
 from .asset_defs import (
+    ManagedAirbyteStack,
     build_airbyte_assets,
     load_assets_from_airbyte_instance,
     load_assets_from_airbyte_project,
 )
 from .ops import airbyte_sync_op
 from .resources import AirbyteResource, AirbyteState, airbyte_resource
-from .types import AirbyteOutput
+from .types import (
+    AirbyteConnection,
+    AirbyteDestination,
+    AirbyteOutput,
+    AirbyteSource,
+    AirbyteSyncMode,
+)
 from .version import __version__
 
 check_dagster_package_version("dagster-airbyte", __version__)
