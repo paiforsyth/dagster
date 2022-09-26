@@ -478,7 +478,7 @@ def load_assets_from_airbyte_instance(
     )
 
 
-class ManagedAirbyteStack(AirbyteInstanceLazyAssetsDefintion, ManagedStackAssetsDefinition):
+class ManagedAirbyteStack(AirbyteInstanceCacheableAssetsDefintion, ManagedStackAssetsDefinition):
     def __init__(self, airbyte: ResourceDefinition, connections: Iterable[AirbyteConnection]):
         self._airbyte_instance: AirbyteResource = airbyte(build_init_resource_context())
         self._connections = list(connections)
