@@ -14,17 +14,16 @@ from dagster_airbyte.utils import is_basic_normalization_operation
 from dagster._experimental.managed_stacks import (
     ManagedStackCheckResult,
     ManagedStackDiff,
-    ManagedStackDiffSort,
 )
 from dagster._experimental.managed_stacks.utils import diff_dicts
 
 
 def diff_sources(config_src: AirbyteSource, curr_src: AirbyteSource) -> ManagedStackCheckResult:
-    dicts_same, diff = diff_dicts(
+    diff = diff_dicts(
         config_src.source_configuration if config_src else {},
         curr_src.source_configuration if curr_src else {},
     )
-    if not dicts_same:
+    if not diff.is_empty():
         return ManagedStackDiff().with_nested(
             config_src.name if config_src else curr_src.name, diff
         )
@@ -35,11 +34,11 @@ def diff_sources(config_src: AirbyteSource, curr_src: AirbyteSource) -> ManagedS
 def diff_destinations(
     config_dst: AirbyteDestination, curr_dst: AirbyteDestination
 ) -> ManagedStackCheckResult:
-    dicts_same, diff = diff_dicts(
+    diff = diff_dicts(
         config_dst.destination_configuration if config_dst else {},
         curr_dst.destination_configuration if curr_dst else {},
     )
-    if not dicts_same:
+    if not diff.is_empty():
         return ManagedStackDiff().with_nested(
             config_dst.name if config_dst else curr_dst.name, diff
         )
@@ -64,8 +63,8 @@ def diff_connections(
     if not curr_conn and config_conn:
         return ManagedStackDiff(additions=[f"Will create {config_conn.name}"])
 
-    dicts_same, diff = diff_dicts(conn_dict(config_conn), conn_dict(curr_conn))
-    if not dicts_same:
+    diff = diff_dicts(conn_dict(config_conn), conn_dict(curr_conn))
+    if not diff.is_empty():
         return ManagedStackDiff().with_nested(config_conn.name, diff)
 
     return ManagedStackDiff()
@@ -79,7 +78,7 @@ def reconcile_sources(
     dry_run: bool,
 ) -> Tuple[Mapping[str, InitializedAirbyteSource], ManagedStackCheckResult]:
 
-    diff = ManagedStackDiff(sort=ManagedStackDiffSort.BY_KEY)
+    diff = ManagedStackDiff()
 
     initialized_sources = {}
     for source_name in set(config_sources.keys()).union(existing_sources.keys()):
@@ -144,7 +143,7 @@ def reconcile_destinations(
     dry_run: bool,
 ) -> Tuple[Mapping[str, InitializedAirbyteDestination], ManagedStackCheckResult]:
 
-    diff = ManagedStackDiff(sort=ManagedStackDiffSort.BY_KEY)
+    diff = ManagedStackDiff()
 
     initialized_destinations = {}
     for destination_name in set(config_destinations.keys()).union(existing_destinations.keys()):
@@ -247,7 +246,7 @@ def reconcile_config(
     )
 
     return (
-        ManagedStackDiff(sort=ManagedStackDiffSort.BY_KEY)
+        ManagedStackDiff()
         .with_nested("Sources", sources_diff)
         .with_nested("Destinations", dests_diff)
         .with_nested("Connections", connections_diff)
@@ -304,7 +303,7 @@ def reconcile_connections_pre(
     workspace_id: str,
     dry_run: bool,
 ) -> ManagedStackCheckResult:
-    diff = ManagedStackDiff(sort=ManagedStackDiffSort.BY_KEY)
+    diff = ManagedStackDiff()
 
     existing_connections = {
         connection_json["name"]: InitializedAirbyteConnection.from_api_json(
@@ -426,7 +425,7 @@ def reconcile_connections(
     workspace_id: str,
     dry_run: bool,
 ) -> ManagedStackCheckResult:
-    diff = ManagedStackDiff(sort=ManagedStackDiffSort.BY_KEY)
+    diff = ManagedStackDiff()
 
     existing_connections = {
         connection["name"]: connection
