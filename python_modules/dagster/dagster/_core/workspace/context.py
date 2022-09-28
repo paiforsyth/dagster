@@ -267,15 +267,17 @@ class WorkspaceRequestContext(BaseWorkspaceRequestContext):
         self,
         instance: DagsterInstance,
         workspace_snapshot: Dict[str, WorkspaceLocationEntry],
-        process_context: "WorkspaceProcessContext",
+        process_context: "IWorkspaceProcessContext",
         version: Optional[str],
         source: Optional[object],
+        read_only: bool,
     ):
         self._instance = instance
         self._workspace_snapshot = workspace_snapshot
         self._process_context = process_context
         self._version = version
         self._source = source
+        self._read_only = read_only
 
     @property
     def instance(self) -> DagsterInstance:
@@ -297,14 +299,14 @@ class WorkspaceRequestContext(BaseWorkspaceRequestContext):
 
     @property
     def read_only(self) -> bool:
-        return self._process_context.read_only
+        return self._read_only
 
     @property
     def permissions(self) -> Dict[str, PermissionResult]:
-        return self._process_context.permissions
+        return get_user_permissions(self._read_only)
 
     def has_permission(self, permission: str) -> bool:
-        permissions = self._process_context.permissions
+        permissions = self.permissions
         check.invariant(
             permission in permissions, f"Permission {permission} not listed in permissions map"
         )
@@ -361,7 +363,7 @@ class IWorkspaceProcessContext(ABC):
 
     @property
     @abstractmethod
-    def instance(self):
+    def instance(self) -> DagsterInstance:
         pass
 
     def __enter__(self):
@@ -507,7 +509,7 @@ class WorkspaceProcessContext(IWorkspaceProcessContext):
 
     @property
     def permissions(self) -> Dict[str, PermissionResult]:
-        return get_user_permissions(self)
+        return get_user_permissions(self._read_only)
 
     @property
     def version(self) -> str:
@@ -647,6 +649,7 @@ class WorkspaceProcessContext(IWorkspaceProcessContext):
             process_context=self,
             version=self.version,
             source=source,
+            read_only=self._read_only,
         )
 
     @property
@@ -675,3 +678,48 @@ class WorkspaceProcessContext(IWorkspaceProcessContext):
         with self._lock:
             self._cleanup_locations()
         self._stack.close()
+
+
+class TestWorkspaceProcessContext(IWorkspaceProcessContext):
+    """
+    A workspace process context over a fixed snapshot
+    """
+
+    def __init__(
+        self,
+        instance: DagsterInstance,
+        locations: Dict[str, WorkspaceLocationEntry],
+    ) -> None:
+        self._instance = instance
+        self._locations = locations
+
+    def create_request_context(self, source=None) -> BaseWorkspaceRequestContext:
+        return WorkspaceRequestContext(
+            instance=self._instance,
+            process_context=self,
+            workspace_snapshot=self._locations.copy(),
+            version="<<test>>",
+            source=None,
+            read_only=True,
+        )
+
+    @property
+    def version(self) -> str:
+        return "<<test>>"
+
+    @property
+    def location_state_events(self) -> "Subject":
+        check.failed("not supported")
+
+    def reload_repository_location(self, name: str) -> None:
+        check.failed("not supported")
+
+    def shutdown_repository_location(self, name: str) -> None:
+        check.failed("not supported")
+
+    def reload_workspace(self) -> None:
+        check.failed("not supported")
+
+    @property
+    def instance(self) -> DagsterInstance:
+        return self._instance
