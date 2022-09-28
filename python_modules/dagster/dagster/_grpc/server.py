@@ -996,6 +996,7 @@ def open_server_process(
     heartbeat_timeout=30,
     fixed_server_id=None,
     startup_timeout=20,
+    cwd=None,
 ):
     check.invariant((port or socket) and not (port and socket), "Set only port or socket")
     check.opt_inst_param(loadable_target_origin, "loadable_target_origin", LoadableTargetOrigin)
@@ -1026,7 +1027,7 @@ def open_server_process(
     if loadable_target_origin:
         subprocess_args += loadable_target_origin.get_cli_args()
 
-    server_process = open_ipc_subprocess(subprocess_args)
+    server_process = open_ipc_subprocess(subprocess_args, cwd=cwd)
 
     from dagster._grpc.client import DagsterGrpcClient
 
@@ -1054,6 +1055,7 @@ def open_server_process_on_dynamic_port(
     heartbeat_timeout=30,
     fixed_server_id=None,
     startup_timeout=20,
+    cwd=None,
 ):
     server_process = None
     retries = 0
@@ -1069,6 +1071,7 @@ def open_server_process_on_dynamic_port(
                 heartbeat_timeout=heartbeat_timeout,
                 fixed_server_id=fixed_server_id,
                 startup_timeout=startup_timeout,
+                cwd=cwd,
             )
         except CouldNotBindGrpcServerToAddress:
             pass
@@ -1089,6 +1092,7 @@ class GrpcServerProcess:
         heartbeat_timeout=30,
         fixed_server_id=None,
         startup_timeout=20,
+        cwd=None,
     ):
         self.port = None
         self.socket = None
@@ -1120,6 +1124,7 @@ class GrpcServerProcess:
                 heartbeat_timeout=heartbeat_timeout,
                 fixed_server_id=fixed_server_id,
                 startup_timeout=startup_timeout,
+                cwd=cwd,
             )
         else:
             self.socket = safe_tempfile_path_unmanaged()
@@ -1133,6 +1138,7 @@ class GrpcServerProcess:
                 heartbeat_timeout=heartbeat_timeout,
                 fixed_server_id=fixed_server_id,
                 startup_timeout=startup_timeout,
+                cwd=cwd,
             )
 
         if self.server_process is None:
