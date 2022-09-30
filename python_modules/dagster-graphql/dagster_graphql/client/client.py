@@ -7,6 +7,7 @@ from gql.transport import Transport
 from gql.transport.requests import RequestsHTTPTransport
 
 import dagster._check as check
+from dagster._annotations import public
 from dagster._core.definitions.utils import validate_tags
 from dagster._core.storage.pipeline_run import PipelineRunStatus
 from dagster._utils.backcompat import experimental_class_warning
@@ -269,6 +270,7 @@ class DagsterGraphQLClient:
             is_using_job_op_graph_apis=False,
         )
 
+    @public
     def submit_job_execution(
         self,
         job_name: str,
@@ -321,6 +323,7 @@ class DagsterGraphQLClient:
             is_using_job_op_graph_apis=True,
         )
 
+    @public
     def get_run_status(self, run_id: str) -> PipelineRunStatus:
         """Get the status of a given Pipeline Run
 
@@ -346,6 +349,7 @@ class DagsterGraphQLClient:
         else:
             raise DagsterGraphQLClientError(query_result_type, query_result["message"])
 
+    @public
     def reload_repository_location(
         self, repository_location_name: str
     ) -> ReloadRepositoryLocationInfo:
@@ -387,6 +391,7 @@ class DagsterGraphQLClient:
                 message=query_result["message"],
             )
 
+    @public
     def shutdown_repository_location(
         self, repository_location_name: str
     ) -> ShutdownRepositoryLocationInfo:
