@@ -68,9 +68,6 @@ if __name__ == "__main__":
             # airflow 1.0/2.0 plugin format
             "airflow.plugins": ["dagster_airflow = dagster_airflow:DagsterAirflowPlugin"],
             # airflow 2.0 provider format
-            "apache_airflow_provider": [
-                "provider_info=dagster_airflow.__init__:get_provider_info"
-            ]
+            "apache_airflow_provider": ["provider_info=dagster_airflow.__init__:get_provider_info"],
         },
-
     )
