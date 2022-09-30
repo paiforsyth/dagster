@@ -39,7 +39,7 @@ class DagsterHook(BaseHook):
     def __init__(
         self,
         dagster_conn_id: Optional[str] = "dagster_default",
-        url: str = '',
+        url: str = "",
         user_token: Optional[str] = None,
     ) -> None:
         super().__init__()
@@ -58,7 +58,7 @@ class DagsterHook(BaseHook):
                 "Cannot get user_token: No valid user_token or dagster_conn_id supplied."
             )
 
-        if self.url == '':
+        if self.url == "":
             raise AirflowException(
                 "Cannot get dagster url: No valid url or dagster_conn_id supplied."
             )
