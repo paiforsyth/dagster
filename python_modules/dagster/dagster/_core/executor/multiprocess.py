@@ -213,6 +213,18 @@ class MultiprocessExecutor(Executor):
                             else:
                                 yield event_or_none
                                 active_execution.handle_event(event_or_none)
+                                if event_or_none.is_resource_init_failure:
+                                    step_failure_event = DagsterEvent.step_failure_event(
+                                        step_context=plan_context.for_step(
+                                            active_execution.get_step_by_key(key)
+                                        ),
+                                        step_failure_data=StepFailureData(
+                                            error=event_or_none.event_specific_data.error,
+                                            user_failure_data=None,
+                                        ),
+                                    )
+                                    yield step_failure_event
+                                    active_execution.handle_event(step_failure_event)
 
                         except ChildProcessCrashException as crash:
                             serializable_error = serializable_error_info_from_exc_info(

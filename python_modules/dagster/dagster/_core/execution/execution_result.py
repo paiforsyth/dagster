@@ -163,6 +163,9 @@ class ExecutionResult(ABC):
     def get_step_success_events(self) -> Sequence[DagsterEvent]:
         return [event for event in self.all_events if event.is_step_success]
 
+    def get_step_failure_events(self) -> Sequence[DagsterEvent]:
+        return [event for event in self.all_events if event.is_step_failure]
+
     def compute_events_for_handle(self, handle: NodeHandle) -> Sequence[DagsterEvent]:
         return [
             event

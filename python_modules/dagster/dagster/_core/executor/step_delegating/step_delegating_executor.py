@@ -222,6 +222,21 @@ class StepDelegatingExecutor(Executor):
                             assert isinstance(dagster_event.step_key, str)
                             del running_steps[dagster_event.step_key]
                             active_execution.verify_complete(plan_context, dagster_event.step_key)
+                        if dagster_event.is_resource_init_failure:
+                            step_failure_event = DagsterEvent.step_failure_event(
+                                step_context=plan_context.for_step(
+                                    active_execution.get_step_by_key(dagster_event.step_key)
+                                ),
+                                step_failure_data=StepFailureData(
+                                    error=dagster_event.event_specific_data.error,  # type: ignore
+                                    user_failure_data=None,
+                                ),
+                            )
+                            yield step_failure_event
+                            active_execution.handle_event(step_failure_event)
+                            assert isinstance(dagster_event.step_key, str)
+                            del running_steps[dagster_event.step_key]
+                            active_execution.verify_complete(plan_context, dagster_event.step_key)
 
                 # process skips from failures or uncovered inputs
                 list(active_execution.plan_events_iterator(plan_context))
